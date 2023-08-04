@@ -1,0 +1,146 @@
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Background
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: <http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har> (see the section on the Weight Lifting Exercise Dataset).
+
+# Data
+The training data for this project are available here:
+
+<https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv>
+
+The test data are available here:
+
+<https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv>
+
+
+The data for this project come from this source: <http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har>. If you use the document you create for this class for any purpose please cite them as they have been very generous in allowing their data to be used for this kind of assignment.
+
+# Preprocessing
+**Import Libraries**
+```{r echo = T, message = FALSE}
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(RColorBrewer)
+library(rattle)
+library(randomForest)
+library(gbm)
+```
+
+**Load the dataset**
+```{r echo = T}
+train <- read.csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"))
+test <- read.csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"))
+```
+
+**Remove variables with nearly negligible variance**
+```{r}
+highly_corr_var <- nearZeroVar(train)
+train <- train[, -highly_corr_var]
+test <- test[, -highly_corr_var]
+```
+
+**Remove columns with NA values**
+```{r}
+missing_vals <- colMeans(is.na(train))
+train <- train[, missing_vals <= 0.95]
+test <- test[, missing_vals <= 0.95]
+```
+
+**Remove nonnumeric columns**
+```{r}
+train <- train[,8:59]
+test <- test[,8:59]
+```
+
+**Check the dimensions of the train and test**
+```{r}
+dim(train)
+dim(test)
+```
+
+# Data Partitioning
+Partition the data into 80% training set and 20% testing set
+
+```{r}
+set.seed(101)
+
+inTrain <- createDataPartition(train$classe, p = 0.8, list = FALSE)
+training_set <- train[inTrain,]
+testing_set <- train[-inTrain,]
+
+training_set$classe <- as.factor(training_set$classe)
+testing_set$classe <- as.factor(testing_set$classe)
+```
+
+Check the dimensions of the training set and testing set
+```{r}
+dim(training_set)
+dim(testing_set)
+```
+
+# Decision Tree Model
+**Train the model using rpart method**
+```{r}
+DT_model <- train(classe ~ ., data = training_set, method = "rpart")
+```
+
+**Make predictions on the testing_set using the trained model**
+```{r}
+DT_prediction <- predict(DT_model, newdata = testing_set)
+```
+
+**Calculate the confusion matrix**
+
+The confusion matrix and statistics indicate the performance of a classification model. The model achieved an overall accuracy of 47.21% and a Kappa value of 0.3086, suggesting a moderate level of agreement beyond chance. The sensitivity (true positive rate) varies across classes, with class A having the highest sensitivity (89.96%) and class D the lowest (23.17%). Specificity (true negative rate) is higher for classes B, C, and D, indicating the model's ability to correctly identify true negatives for these classes. However, the overall performance is relatively modest, with the model struggling to discriminate certain classes (e.g., B, C, D, and E) effectively. Improvements to the model or additional data may be necessary to enhance its predictive capabilities.
+```{r}
+confusionMatrix(DT_prediction, testing_set$classe)
+```
+
+
+**Plot the decision tree**
+
+The decision tree visualization provides a clear representation of the model's decision-making process, but the relatively low accuracy indicates that the model might require further improvements or alternative methods for better classification performance. Further analysis, feature engineering, or exploring other machine learning algorithms could be considered to enhance the model's predictive capabilities.
+```{r}
+rpart.plot(DT_model$finalModel, roundint = FALSE)
+```
+
+# Random Forest
+**Train the model using randomForest method**
+```{r}
+RF_model <- randomForest(classe ~ ., data = training_set, ntree = 500)
+```
+
+**Make predictions on the testing_set using the trained Random Forest model**
+```{r}
+RF_prediction <- predict(RF_model, newdata = testing_set)
+```
+
+**Calculate the confusion matrix**
+
+The confusion matrix and statistics represent the performance evaluation of a classification model. The model achieved high accuracy (99.52%) and a high Kappa value (0.9939), indicating excellent overall predictive performance. Sensitivity (true positive rate) and specificity (true negative rate) are generally high for all classes, implying the model's ability to correctly identify positive and negative cases. Positive predictive values (precision) are also high for most classes, suggesting the model's reliability in predicting positive cases. The model's high performance across different metrics demonstrates its effectiveness in classifying the classes A, B, C, D, and E.
+```{r}
+confusionMatrix(RF_prediction, testing_set$classe)
+```
+
+# Results
+Based on the previous analysis, it is evident that Random Forest outperforms other methods in terms of prediction. Now, we will assess its performance on the Test set provided in the Coursera project.
+
+```{r}
+Final_RF <- predict(RF_model, test)
+Final_RF
+```
+
+
+
+
+
+
+
+
+
+
+
